@@ -1,0 +1,14 @@
+{
+    "cSpell.words": [
+        "LIGHTMAGENTA",
+        "LIGHTWHITE",
+        "pname",
+        "smap"
+    ],
+
+    "python.linting.enabled": true,
+    "python.linting.flake8Enabled": true,
+    "flake8.args": [
+        "--max-line-length=120"
+    ]
+}
