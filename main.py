@@ -5,6 +5,7 @@ import itertools
 import os
 from colorama import init, Fore, Back, Style
 import pygame
+import zmq
 
 # Initialize colorama for colored text
 init(autoreset=True)
@@ -36,6 +37,21 @@ achievements = []
 scores = {}
 
 
+# Function to request weather data from microservice A
+def request_weather_data(city_name):
+    # Establish the communication pipeline
+    context = zmq.Context()
+    socket = context.socket(zmq.REQ)
+    socket.connect("tcp://localhost:5555")
+
+    # Send the city name to microservice A
+    socket.send_string(city_name)
+
+    # Receive a JSON object from microservice A and return object
+    reply = socket.recv_pyobj()
+    return reply
+
+
 # Apply the current theme settings to global variables
 def apply_theme():
     global header_color, option_color, border_color
@@ -48,6 +64,59 @@ def apply_theme():
 
 
 apply_theme()
+
+
+def magenta_text(text):
+    return Fore.MAGENTA + text
+
+
+def formatted_line(descriptor, value, width):
+    descriptor_formatted = f"{descriptor:<{width - len(value) - 1}}"
+    return text_color + "| " + descriptor_formatted + magenta_text(value) + text_color + "  |"
+
+
+# Function to display weather information
+def display_weather_info():
+    clear_screen()
+    print_header("Hey Gamer, Check the Weather!")
+
+    print(text_color + "Enter a city name: ", end="")
+    city_name = input(Fore.MAGENTA)
+
+    clear_screen()
+    print_header("Hey Gamer, Check the Weather!")
+
+    try:
+        weather_data = request_weather_data(city_name)
+        if weather_data.get('cod') == 200:
+            fixed_width = 42
+
+            print(formatted_line("Location:", weather_data['name'], fixed_width))
+            print(formatted_line("Weather Conditions:", weather_data['weather'][0]['description'], fixed_width))
+            print(formatted_line("Temperature:", f"{weather_data['main']['temp']}°F", fixed_width))
+            print(formatted_line("Low:", f"{weather_data['main']['temp_min']}°F", fixed_width))
+            print(formatted_line("High:", f"{weather_data['main']['temp_max']}°F", fixed_width))
+            print(formatted_line("Humidity:", f"{weather_data['main']['humidity']}%", fixed_width))
+            print(formatted_line("Wind Speed:", f"{weather_data['wind']['speed']} mph", fixed_width))
+        else:
+            print(Fore.RED + "| Error retrieving weather data. Try again.  |")
+
+    except Exception as e:
+        print(Fore.RED + f"Error: {e}")
+
+    print_border()
+    print_option(1, "Back to Welcome Page")
+    print_option(2, "Exit")
+    print_border()
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
+    if choice == '1':
+        welcome_page()
+    elif choice == '2':
+        exit_application()
+    else:
+        print(Fore.RED + "Invalid selection. Please try again.")
+        display_weather_info()
 
 
 # Clear the console screen
@@ -99,10 +168,12 @@ def welcome_page():
     print_option(1, "Start Rolling Dice")
     print_option(2, "Play Dice Duel")
     print_option(3, "Achievements")
-    print_option(4, "Help")
-    print_option(5, "Exit")
+    print_option(4, "Check Today's Weather")
+    print_option(5, "Help")
+    print_option(6, "Exit")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         set_rerolls()
     elif choice == '2':
@@ -110,8 +181,10 @@ def welcome_page():
     elif choice == '3':
         view_achievements()
     elif choice == '4':
-        help_menu()
+        display_weather_info()
     elif choice == '5':
+        help_menu()
+    elif choice == '6':
         exit_application()
     else:
         print(Fore.RED + "Invalid selection. Please try again.")
@@ -131,7 +204,8 @@ def view_achievements():
     print_border()
     print_option(1, "Back to Welcome Page")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         welcome_page()
     else:
@@ -143,15 +217,17 @@ def view_achievements():
 def help_menu():
     clear_screen()
     print_header("Help Menu")
-    print(text_color + "| 1. Start Rolling Dice: Begin rolling dice. |")
-    print(text_color + "| 2. Set Re-rolls: Set the number of re-rolls|")
-    print(text_color + "| 3. Roll Dice: Roll up to 6 dice at once.   |")
-    print(text_color + "| 4. Re-roll Specific Dice                   |")
-    print(text_color + "| 5. Play Dice Duel: Play the Dice Duel game.|")
-    print(text_color + "| 6. Main Menu: Return to the main menu.     |")
-    print(text_color + "| 7. Exit: Close the application.            |")
+
+    print(text_color + "| " + magenta_text("1. Start Rolling Dice:") + text_color + " Begin rolling dice. |")
+    print(text_color + "| " + magenta_text("2. Set Re-rolls:") + text_color + " Set the number of re-rolls|")
+    print(text_color + "| " + magenta_text("3. Roll Dice:") + text_color + " Roll up to 6 dice at once.   |")
+    print(text_color + "| " + magenta_text("4. Re-roll:") + text_color + " Re-roll specific dice          |")
+    print(text_color + "| " + magenta_text("5. Play Dice Duel:") + text_color + " Play the Dice Duel game.|")
+    print(text_color + "| " + magenta_text("6. Main Menu:") + text_color + " Return to the main menu.     |")
+    print(text_color + "| " + magenta_text("7. Exit:") + text_color + " Close the application.            |")
     print(text_color + "|                                            |")
-    print(text_color + "| Press Enter to return to the Welcome Page. |")
+    print(text_color + "| Press" + Fore.MAGENTA + " Enter " + text_color + "to return to the Welcome Page. |")
+
     print_border()
     input()
     welcome_page()
@@ -163,13 +239,17 @@ def set_rerolls():
     print_header("Set Re-rolls")
     print(text_color + "| Enter the number of re-rolls allowed (0-4) |")
     print_border()
+
     try:
-        num_rerolls = int(input(text_color + "Number of re-rolls: "))
+        print(text_color + "Number of re-rolls: ", end="")
+        num_rerolls = int(input(Fore.MAGENTA))
+
         if 0 <= num_rerolls <= 4:
             main_menu(num_rerolls)
         else:
             print(Fore.RED + "Invalid number of re-rolls. Please try again.")
             set_rerolls()
+
     except ValueError:
         print(Fore.RED + "Invalid input. Please enter a number between 0 and 4.")
         set_rerolls()
@@ -182,10 +262,12 @@ def main_menu(num_rerolls):
     print_option(1, "Roll Dice - Roll up to 6 dice at once")
     print_option(2, "View Session Summary")
     print_option(3, "Settings")
-    print_option(4, "Back to Welcome Page")
-    print_option(5, "Exit - Close the application")
+    print_option(4, "Check Today's Weather")
+    print_option(5, "Back to Welcome Page")
+    print_option(6, "Exit - Close the application")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         roll_dice(num_rerolls)
     elif choice == '2':
@@ -193,8 +275,10 @@ def main_menu(num_rerolls):
     elif choice == '3':
         settings_menu(num_rerolls)
     elif choice == '4':
-        welcome_page()
+        display_weather_info()
     elif choice == '5':
+        welcome_page()
+    elif choice == '6':
         exit_application()
     else:
         print(Fore.RED + "Invalid selection. Please try again.")
@@ -209,7 +293,8 @@ def settings_menu(num_rerolls):
     print(text_color + "| 2. Change Dice Sound                       |")
     print_option(3, "Back to Main Menu")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         change_theme(num_rerolls)
     elif choice == '2':
@@ -230,7 +315,8 @@ def change_theme(num_rerolls):
     print(text_color + "| 3. Retro                                   |")
     print_option(4, "Back to Settings")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         set_theme('classic')
     elif choice == '2':
@@ -254,7 +340,8 @@ def change_dice_sound(num_rerolls):
     print(text_color + "| 3. Dice Roll Sound 2                       |")
     print_option(4, "Back to Settings")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         set_dice_sound('default')
     elif choice == '2':
@@ -303,7 +390,8 @@ def view_session_summary(num_rerolls):
     print(text_color + "|                                            |")
     print_option(1, "Back to Main Menu")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         main_menu(num_rerolls)
     else:
@@ -317,13 +405,17 @@ def roll_dice(num_rerolls):
     print_header("Roll Dice")
     print(text_color + "| Enter the number of dice to roll (1-6)     |")
     print_border()
+
     try:
-        num_dice = int(input(text_color + "Number of dice: "))
+        print(text_color + "Number of dice: ", end="")
+        num_dice = int(input(Fore.MAGENTA))
+
         if 1 <= num_dice <= 6:
             roll_dice_transition(num_dice, num_rerolls, initial_roll=True)
         else:
             print(Fore.RED + "Invalid number of dice. Please try again.")
             roll_dice(num_rerolls)
+
     except ValueError:
         print(Fore.RED + "Invalid input. Please enter a number between 1 and 6.")
         roll_dice(num_rerolls)
@@ -372,7 +464,8 @@ def dice_result(results, num_rerolls):
         print_option(3, "Main Menu")
         print_option(4, "Exit")
         print_border()
-        choice = input(text_color + "Please select an option: ")
+        print(text_color + "Please select an option: ", end="")
+        choice = input(Fore.MAGENTA)
         if choice == '1':
             num_rerolls -= 1
             roll_dice_transition(len(results), num_rerolls, initial_roll=False)
@@ -390,7 +483,8 @@ def dice_result(results, num_rerolls):
         print_option(1, "Main Menu")
         print_option(2, "Exit")
         print_border()
-        choice = input(text_color + "Please select an option: ")
+        print(text_color + "Please select an option: ", end="")
+        choice = input(Fore.MAGENTA)
         if choice == '1':
             main_menu(num_rerolls)
         elif choice == '2':
@@ -406,7 +500,9 @@ def reroll_specific_dice(results, num_rerolls):
     print_header("Re-roll Specific Dice")
     print(text_color + "Enter the die numbers to re-roll (e.g., 1,3,5)")
     print_border()
-    reroll_indices = input(text_color + "Die numbers: ")
+    print(text_color + "Die numbers: ", end="")
+    reroll_indices = input(Fore.MAGENTA)
+
     try:
         reroll_indices = [int(x)-1 for x in reroll_indices.split(',')
                           if 0 <= int(x)-1 < len(results)]
@@ -415,6 +511,7 @@ def reroll_specific_dice(results, num_rerolls):
         num_rerolls -= 1
         roll_dice_transition(len(results), num_rerolls, initial_roll=False,
                              results=new_results)
+
     except ValueError:
         print(Fore.RED + "Invalid input. Enter valid die numbers separated by commas.")
         reroll_specific_dice(results, num_rerolls)
@@ -446,8 +543,11 @@ def play_dice_duel():
     print_header("Dice Duel Game")
     print(text_color + "| Enter number of players (1-2)              |")
     print_border()
+
     try:
-        num_players = int(input(text_color + "Number of players: "))
+        print(text_color + "Number of players: ", end="")
+        num_players = int(input(Fore.MAGENTA))
+
         if 1 <= num_players <= 2:
             player_names = []
             for i in range(num_players):
@@ -457,6 +557,7 @@ def play_dice_duel():
         else:
             print(Fore.RED + "Invalid number of players. Please try again.")
             play_dice_duel()
+
     except ValueError:
         print(Fore.RED + "Invalid input. Please enter 1 or 2.")
         play_dice_duel()
@@ -563,7 +664,8 @@ def dice_duel_game(num_players, player_names):
     save_scores(player_scores)
     print_option(1, "Back to Welcome Page")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         welcome_page()
     else:
@@ -587,7 +689,8 @@ def exit_application():
     print_option(1, "Yes")
     print_option(2, "No (Return to Main Menu)")
     print_border()
-    choice = input(text_color + "Please select an option: ")
+    print(text_color + "Please select an option: ", end="")
+    choice = input(Fore.MAGENTA)
     if choice == '1':
         print(Fore.RED + "Exiting the application... Goodbye!")
         sys.exit()
