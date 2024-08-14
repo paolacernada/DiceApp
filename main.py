@@ -226,7 +226,7 @@ def help_menu():
     print(text_color + "| " + magenta_text("6. Main Menu:") + text_color + " Return to the main menu.     |")
     print(text_color + "| " + magenta_text("7. Exit:") + text_color + " Close the application.            |")
     print(text_color + "|                                            |")
-    print(text_color + "| Press" + Fore.MAGENTA + " Enter " + text_color + "to return to the Welcome Page. |")
+    print(Fore.YELLOW + "| Press" + Fore.CYAN + " Enter " + Fore.YELLOW + "to return to the Welcome Page. |")
 
     print_border()
     input()
